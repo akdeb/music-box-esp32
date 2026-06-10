@@ -1,135 +1,265 @@
-# Magenta RealTime 2
+# Musical AI Toys with ELATO
 
-[![CLI Tests](https://github.com/magenta/magenta-realtime/actions/workflows/cli_tests.yml/badge.svg)](https://github.com/magenta/magenta-realtime/actions/workflows/cli_tests.yml)
+<div align="center">
 
-> [!NOTE]
-> **Go [here](https://magenta.withgoogle.com/mrt2) for pre-built Apps & Plugins.**
+### Local musical AI toys powered by your Mac, Magenta RealTime, MLX, and ESP32
 
-Magenta RealTime 2 (MRT2) is a state-of-the-art open-weights model for real-time music generation. It contains several key components
-* An [open-weights model](https://huggingface.co/google/magenta-realtime-2)
-* A [Python library](README.md) `magenta-rt` for inference with JAX and MLX backends
-* A [C++ inference engine](core/README.md) `magentart::core` for efficient streaming audio generation on Apple Silicon MacBooks
-* A suite of [example applications](examples/README.md) built on the inference engine.
+*Musical AI Toys with ELATO is a local-first macOS app for creating realtime generative music and streaming it to an ESP32 speaker toy. Touch the ESP32 to interrupt playback, speak a request like "add drums" or "make it lo-fi", and the Mac uses local Whisper STT plus Qwen3.5 tool calls to update the musical bubbles before resuming playback.*
 
-Use this project to run inference, build a DAW plugin, or embed the model into new applications of your imagination.
-Future updates will support supervised fine-tuning.
+**Apple Silicon · Magenta RealTime 2 · MLX · React · ESP32-S3 · Whisper ASR · Qwen3.5 Tool Calls · Opus Audio**
 
-📖 **Full documentation:** https://magenta.github.io/magenta-realtime/
-(or build it locally — see [`docs/README.md`](docs/README.md)).
+</div>
 
-> [!NOTE]
-> **Looking for Magenta RealTime v1?** The original model and code have been moved to the [`v1_legacy`](https://github.com/magenta/magenta-realtime/tree/v1_legacy) branch.
+## What This Is
 
-## Repo Highlights
+This repo is built on [Magenta RealTime 2](https://magenta.withgoogle.com/mrt2), an open-weights realtime music generation model. The main app in this fork is the Collider-based macOS app:
 
-- `magenta_rt/` — Python inference library (JAX / MLX backends).
-- `core/` — C++ inference library (`magentart::core`).
-- `examples/mrt2/auv3` — All-in-one AUv3 plugin for DAWs.
-- `examples/mrt2/standalone` — All-in-one standalone macOS app.
-- `examples/jam/` — App for exploring note control.
-- `examples/collider/` — App for exploring prompt space.
-- `notebooks/` - Notebook for trying Python API.
+- `examples/collider/` — native macOS app, React UI, websocket server, ESP32 audio streaming, voice-command agent.
+- `arduino/` — ESP32-S3 firmware for WiFi discovery, touch interrupt, mic streaming, Opus decode, and speaker output.
+- `core/` and `magenta_rt/` — Magenta RealTime C++ and Python inference code.
 
-## Hardware requirements
+## Why It Is Fun
 
-**Real-time streaming** requires **Apple Silicon** (M-series). We offer two model sizes:
+- **Realtime music generation**: Drag prompt bubbles around a listener puck to steer the music.
+- **ESP32 speaker mode**: Stream generated audio over websocket as Opus packets.
+- **Voice interrupt**: Touch the ESP32, speak a command, and the Mac pauses music while it listens.
+- **Local STT and LLM**: Whisper transcribes locally; Qwen3.5 chooses tool calls locally.
+- **Tool-call UI actions**: The agent can call `addBubble(text, nearness)` and `removeBubble(text)`.
+- **No cloud required** once your models are downloaded.
 
-- **`mrt2_small`** (230M parameters) — runs real-time on any Apple Silicon Mac, including Air models.
-- **`mrt2_base`** (2.4B parameters) — higher quality; requires a Pro Max chip for real-time streaming.
+## Hardware Requirements
 
-The table below shows which devices support **real-time streaming** (generating audio faster than playback):
+### Mac
 
-| Device | `mrt2_small` (230M) | `mrt2_base` (2.4B) |
-|---|---|---|
-| M5 Max | ✅ | ✅ |
-| M3 Max | ✅ | ✅ |
-| M2 Max | ✅ | ✅ |
-| M4 Pro | ✅ | ✅ |
-| M2 Pro | ✅ | ❌ |
-| M1 Pro | ✅ | ❌ |
-| M4 Air | ✅ | ❌ |
-| M3 Air | ✅ | ❌ |
-| M1 Air | ✅ | ❌ |
+Realtime generation requires Apple Silicon.
 
-> **Note:** Both models can also run **offline (non-real-time) inference** on any Apple Silicon Mac or NVIDIA GPU via the Python library. See more details on [`docs/models.md`](docs/models.md).
+- `mrt2_small` runs realtime on most Apple Silicon Macs.
+- `mrt2_base` sounds better but wants a stronger Pro/Max-class machine for realtime use.
 
-## Quickstart on Apple Silicon
+### ESP32
+
+The firmware is currently set up for an ESP32-S3 dev board with:
+
+- I2S microphone
+- I2S speaker amp, such as MAX98357A
+- touch input
+- RGB/status LED
+- WiFi on the same network as your Mac
+
+See [arduino/README.md](arduino/README.md) for pin notes.
+
+## Quick Start
+
+### 1. Clone The Repo
 
 ```bash
-# Install uv if you haven't and create a venv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv venv --python 3.12
-source .venv/bin/activate
+git clone --recurse-submodules https://github.com/akdeb/musical-ai-toys.git
+cd musical-ai-toys
+```
 
-# Install dependencies (Python dev)
-uv pip install "magenta-rt[mlx]"
+If you already cloned without submodules:
 
-# Download resources: style model and codec model
-# (i.e., MusicCoCa and SpectroStream)
+```bash
+git submodule update --init --recursive
+```
+
+### 2. Install Mac Dependencies
+
+Install Homebrew packages:
+
+```bash
+brew install cmake node opus python
+```
+
+Install Python tooling and MLX voice dependencies:
+
+```bash
+python3 -m pip install --upgrade pip
+python3 -m pip install -e ".[mlx]" mlx-whisper mlx-lm huggingface_hub
+```
+
+Install the Magenta model resources:
+
+```bash
 mrt models init
-# Download the streaming model you want to use
 mrt models download
-# Generate 4 seconds of music (change to `mrt2_small` for small model)
-mrt mlx generate --prompt "disco funk" --duration 4.0 --model=mrt2_base
 ```
 
-### Python Development
+By default, models/resources are stored under:
 
-For local development, clone the repo instead of installing from PyPI:
-
-```bash
-git clone --recurse-submodules https://github.com/magenta/magenta-realtime.git
-cd magenta-realtime
-uv pip install -e ".[mlx]"
+```text
+~/Documents/Magenta/magenta-rt-v2/
 ```
 
-### C++ App Development
+The app auto-loads `mrt2_base` from that folder when available. You can also pick a model from the app settings.
 
-To get started building C++ apps, perform the following setup:
+### 3. Download Local Voice Models
+
+The app expects these Hugging Face models in your local cache:
+
+- `mlx-community/whisper-base.en-mlx`
+- `mlx-community/Qwen3.5-4B-MLX-4bit`
+
+Download them once:
 
 ```bash
-# Install dependencies
-uv pip install "cmake<3.28"
+python3 - <<'PY'
+from huggingface_hub import snapshot_download
 
-# Build hello_mrt2 (a basic command-line interface)
+snapshot_download("mlx-community/whisper-base.en-mlx")
+snapshot_download("mlx-community/Qwen3.5-4B-MLX-4bit")
+PY
+```
+
+### 4. Build And Run The macOS App
+
+```bash
 cmake . -B build
-cmake --build build --target hello_mrt2 -j10
-
-# Generate 4 seconds of music
-./build/examples/hello_mrt2/hello_mrt2 \
-    ~/Documents/Magenta/magenta-rt-v2/models/mrt2_base/mrt2_base.mlxfn \
-    ~/Documents/Magenta/magenta-rt-v2/resources \
-    100 \
-    --prompt "ambient pads with sub bass"
+cmake --build build --target deploy_mrt2_collider -j10
+open ~/Applications/"Musical AI Toys with ELATO.app"
 ```
 
-See the full documentation:
+The deploy target builds the React UI, signs the app locally, bundles `voice_agent.py`, and copies the app to:
 
-- [Installation](docs/installation.md)
-- [Models & checkpoints](docs/models.md)
-- [Inference](docs/inference.md)
-- [Exporting models](docs/exporting.md)
-- [Latency benchmark](docs/benchmark.md)
-- [Testing](docs/testing.md)
-
-## Other resources
-
-- [Get Started](https://magenta.withgoogle.com/mrt2)
-- [Blog Post](https://magenta.withgoogle.com/magenta-realtime-2)
-- [Hugging Face](https://huggingface.co/google/magenta-realtime-2)
-
-## Citing this work
-
-Please cite our previous [technical report](https://arxiv.org/abs/2508.04651):
-
-**BibTeX:**
-
+```text
+~/Applications/Musical AI Toys with ELATO.app
 ```
-@article{gdmlyria2025live,
-    title={Live Music Models},
-    author={Caillon, Antoine and McWilliams, Brian and Tarakajian, Cassie and Simon, Ian and Manco, Ilaria and Engel, Jesse and Constant, Noah and Li, Pen and Denk, Timo I. and Lalama, Alberto and Agostinelli, Andrea and Huang, Anna and Manilow, Ethan and Brower, George and Erdogan, Hakan and Lei, Heidi and Rolnick, Itai and Grishchenko, Ivan and Orsini, Manu and Kastelic, Matej and Zuluaga, Mauricio and Verzetti, Mauro and Dooley, Michael and Skopek, Ondrej and Ferrer, Rafael and Borsos, Zal{\'a}n and van den Oord, {\"A}aron and Eck, Douglas and Collins, Eli and Baldridge, Jason and Hume, Tom and Donahue, Chris and Han, Kehang and Roberts, Adam},
-    journal={arXiv:2508.04651},
-    year={2025}
-}
+
+## ESP32 Setup
+
+### 1. Install PlatformIO
+
+If you use VS Code, install the PlatformIO extension. Or install the CLI:
+
+```bash
+python3 -m pip install platformio
 ```
-# MusicalToys
+
+### 2. Build And Flash Firmware
+
+Connect the ESP32-S3 over USB, then run:
+
+```bash
+cd arduino
+pio run -t upload -t monitor
+```
+
+The monitor runs at `115200`.
+
+### 3. Connect ESP32 To WiFi
+
+On first boot, the device exposes a WiFi setup portal. Connect to the ELATO access point, enter your WiFi credentials, and put the ESP32 on the same network as the Mac.
+
+The Mac app advertises itself over mDNS and runs the websocket server for the ESP32. Keep the app open while powering or reconnecting the device.
+
+## How To Use It
+
+1. Open `Musical AI Toys with ELATO.app`.
+2. Wait for the model to load.
+3. Click the large play button to stream music to the ESP32.
+4. Click the laptop icon to enable or disable local Mac audio output.
+5. Touch the ESP32 to interrupt playback.
+6. Speak a command, for example:
+   - "add drums to this"
+   - "make it lo-fi"
+   - "remove guitar"
+   - "add saxophone closer"
+7. The app shows your transcript, Qwen3.5 calls tools, bubbles update, and ESP32 playback resumes.
+
+## Status Colors
+
+The ESP32 firmware uses LED state to show what is happening:
+
+- Green / processing: connected, waiting, or agent is thinking.
+- Yellow / listening: mic is streaming to the Mac.
+- Blue / speaking: ESP32 speaker is playing generated audio.
+
+## App Controls
+
+- Large play/pause button: ESP32 playback.
+- Laptop icon: Mac/laptop audio output.
+- Upload icon: load an audio prompt.
+- Right instrument rail: click an instrument to add it as a music bubble.
+- Settings icon: model, timing, generation, and buffer controls.
+
+## Project Structure
+
+```text
+musical-ai-toys/
+├── arduino/                  # ESP32-S3 firmware
+├── core/                     # C++ realtime inference engine
+├── examples/
+│   ├── collider/             # Musical AI Toys with ELATO macOS app
+│   │   ├── ui/               # React UI
+│   │   └── voice_agent.py    # Whisper + Qwen3.5 tool-call loop
+│   ├── common/               # Shared native/React app code
+│   └── hello_mrt2/           # Minimal CLI generation example
+├── magenta_rt/               # Python package
+├── docs/                     # Original Magenta RT docs
+└── README.md
+```
+
+## Troubleshooting
+
+### App opens but no model loads
+
+Run:
+
+```bash
+mrt models init
+mrt models download
+```
+
+Then reopen the app or choose the model folder from settings.
+
+### ESP32 cannot find the server
+
+- Make sure the Mac and ESP32 are on the same WiFi network.
+- Open the macOS app before powering/reconnecting the ESP32.
+- Check that no firewall is blocking local network traffic.
+- Watch `pio device monitor` for mDNS and websocket logs.
+
+### Whisper works but no tool call happens
+
+Make sure Qwen3.5 is cached:
+
+```bash
+python3 - <<'PY'
+from huggingface_hub import snapshot_download
+snapshot_download("mlx-community/Qwen3.5-4B-MLX-4bit", local_files_only=True)
+print("Qwen3.5 is cached")
+PY
+```
+
+### App crashes during startup
+
+Rebuild the latest app:
+
+```bash
+cmake --build build --target deploy_mrt2_collider -j10
+```
+
+The app queues prompt updates while the model is loading, which avoids racing React startup messages with native MLX model initialization.
+
+## Stack
+
+- Music model: Magenta RealTime 2
+- Native inference: C++ `magentart::core` with MLX/Metal
+- UI: React, TypeScript, Vite
+- Speech-to-text: `mlx-community/whisper-base.en-mlx`
+- LLM agent: `mlx-community/Qwen3.5-4B-MLX-4bit`
+- Transport: websocket
+- ESP32 audio: Opus over websocket, decoded on-device
+- Firmware: Arduino + PlatformIO
+
+## Safety
+
+This is an experimental local AI music toy platform. The local LLM can misunderstand speech or choose imperfect tool calls. Use it as a creative tool, supervise children, and avoid treating generated outputs as authoritative.
+
+## Upstream Credits
+
+This project builds on Google Magenta's [Magenta RealTime 2](https://github.com/magenta/magenta-realtime) and the open MLX ecosystem.
+
+## License
+
+See [LICENSE](LICENSE).
