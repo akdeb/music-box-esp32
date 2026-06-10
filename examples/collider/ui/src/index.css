@@ -119,10 +119,20 @@
   overflow-wrap: anywhere;
 }
 
+.transport-dock {
+  position: fixed;
+  left: var(--app-padding);
+  bottom: var(--app-padding);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  color: var(--color-fg);
+}
+
 .elato-wordmark {
   position: fixed;
   left: var(--app-padding);
-  bottom: calc(var(--app-padding) - 3px);
+  top: calc(var(--app-padding) + 2px);
   z-index: 10;
   font-family: 'Luckiest Guy', 'Google Sans', system-ui, sans-serif;
   font-size: 30px;
@@ -135,7 +145,7 @@
 
 .voice-chat-dock {
   position: fixed;
-  left: max(120px, calc(var(--app-padding) + 90px));
+  left: max(200px, calc(var(--app-padding) + 190px));
   right: calc(var(--app-padding) + var(--instrument-rail-width) + 16px);
   bottom: calc(var(--app-padding) + 4px);
   z-index: 11;

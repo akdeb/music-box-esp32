@@ -18,7 +18,7 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import { VolumeControl } from './VolumeControl';
 import { Replay } from '@mui/icons-material';
-import { Brain, LoaderCircle, Speaker, VolumeX } from 'lucide-react';
+import { Brain, Laptop, LoaderCircle, Speaker, VolumeX } from 'lucide-react';
 
 type VoiceStatus = 'idle' | 'listening' | 'processing' | 'thinking' | 'done' | 'error';
 
@@ -41,6 +41,7 @@ interface TransportControlsProps {
   speakerStreaming?: boolean;
   onToggleSpeaker?: () => void;
   voiceStatus?: VoiceStatus;
+  speakerButtonVariant?: 'speaker' | 'laptop';
 }
 
 export function TransportControls({
@@ -62,16 +63,20 @@ export function TransportControls({
   speakerStreaming = false,
   onToggleSpeaker,
   voiceStatus = 'idle',
+  speakerButtonVariant = 'speaker',
 }: TransportControlsProps) {
   const noModel = !model || model === 'No model loaded';
   const isVoiceBusy = voiceStatus === 'processing' || voiceStatus === 'thinking';
-  const speakerTooltip = isVoiceBusy
+  const speakerTooltip = speakerButtonVariant === 'laptop'
+    ? speakerStreaming ? 'Disable laptop output' : 'Enable laptop output'
+    : isVoiceBusy
     ? 'Thinking about your ESP32 voice command'
     : speakerStreaming ? 'Stop ESP32 speaker stream' : 'Start ESP32 speaker stream';
+  const secondaryActive = speakerStreaming;
   const playButton = (
     <button
-      onClick={noModel ? undefined : onTogglePlay}
-      disabled={noModel}
+      onClick={noModel || isVoiceBusy ? undefined : onTogglePlay}
+      disabled={noModel || isVoiceBusy}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -80,7 +85,7 @@ export function TransportControls({
         height: '56px',
         borderRadius: '50%',
         border: 'none',
-        background: isDawPlaying ? '#FF7A00' : 'var(--color-play-bg, #FFF)',
+        background: isVoiceBusy ? 'var(--color-control-bg-active, rgba(255,122,0,0.14))' : isDawPlaying ? '#FF7A00' : 'var(--color-play-bg, #FFF)',
         color: isDawPlaying ? '#000' : 'var(--color-play-fg, #000)',
         padding: 0,
         flexShrink: 0,
@@ -88,9 +93,15 @@ export function TransportControls({
         animation: isDawPlaying ? 'magenta-pulse 2s infinite ease-in-out' : 'none',
       }}
     >
-      <span className="material-icons" style={{ fontSize: '28px' }}>
-        {isDawPlaying ? 'cable' : (isPlaying ? 'pause' : 'play_arrow')}
-      </span>
+      {voiceStatus === 'thinking' ? (
+        <Brain size={27} />
+      ) : voiceStatus === 'processing' || voiceStatus === 'listening' ? (
+        <LoaderCircle size={27} className="voice-status-spin" />
+      ) : (
+        <span className="material-icons" style={{ fontSize: '28px' }}>
+          {isDawPlaying ? 'cable' : (isPlaying ? 'pause' : 'play_arrow')}
+        </span>
+      )}
     </button>
   );
 
@@ -135,19 +146,22 @@ export function TransportControls({
           <span>
             <IconButton
               onClick={onToggleSpeaker}
-              disabled={!onToggleSpeaker || isVoiceBusy}
+              disabled={!onToggleSpeaker || (speakerButtonVariant === 'speaker' && isVoiceBusy)}
               sx={{
                 width: 40,
                 height: 40,
-                color: isVoiceBusy || speakerStreaming ? 'var(--color-accent, #FF7A00)' : 'var(--color-fg)',
-                background: isVoiceBusy || speakerStreaming ? 'var(--color-control-bg-active, rgba(255,122,0,0.14))' : 'transparent',
+                color: secondaryActive ? 'var(--color-accent, #FF7A00)' : 'var(--color-fg)',
+                background: secondaryActive ? 'var(--color-control-bg-active, rgba(255,122,0,0.14))' : 'transparent',
+                opacity: speakerButtonVariant === 'laptop' && !secondaryActive ? 0.58 : 1,
               }}
             >
-              {voiceStatus === 'thinking'
-                ? <Brain size={20} />
-                : voiceStatus === 'processing'
-                  ? <LoaderCircle size={20} className="voice-status-spin" />
-                  : speakerStreaming ? <Speaker size={20} /> : <VolumeX size={20} />}
+              {speakerButtonVariant === 'laptop'
+                ? <Laptop size={20} />
+                : voiceStatus === 'thinking'
+                  ? <Brain size={20} />
+                  : voiceStatus === 'processing'
+                    ? <LoaderCircle size={20} className="voice-status-spin" />
+                    : speakerStreaming ? <Speaker size={20} /> : <VolumeX size={20} />}
             </IconButton>
           </span>
         </Tooltip>

@@ -506,19 +506,13 @@ function App() {
 
   return (
     <div className="collider-app-shell">
-      {/* Transport — top left */}
-      <div style={{
-        position: 'fixed',
-        top: 'var(--app-padding)',
-        left: 'var(--app-padding)',
-        zIndex: 10,
-        color: 'var(--color-fg)',
-        display: 'flex',
-        alignItems: 'center',
-      }}>
+      <div className="elato-wordmark">ELATO</div>
+
+      {/* Transport — bottom left */}
+      <div className="transport-dock">
         <TransportControls
-          isPlaying={isPlaying}
-          onTogglePlay={togglePlay}
+          isPlaying={speakerStreaming}
+          onTogglePlay={toggleSpeakerStream}
           volume={paramsState.volume}
           onVolumeChange={(v) => sendParamChange(5, v)}
           onReset={resetModel}
@@ -526,9 +520,10 @@ function App() {
           model={modelName}
           showReset={false}
           showSpeaker
-          speakerStreaming={speakerStreaming}
-          onToggleSpeaker={toggleSpeakerStream}
+          speakerStreaming={isPlaying}
+          onToggleSpeaker={togglePlay}
           voiceStatus={voiceStatus}
+          speakerButtonVariant="laptop"
         />
         <Tooltip title={canAddPrompt || prompts.some(p => p.isAudio) ? "Upload audio prompt" : "Maximum prompt slots reached"}>
           <IconButton
@@ -637,8 +632,6 @@ function App() {
           ))}
         </div>
       </aside>
-
-      <div className="elato-wordmark">ELATO</div>
 
       {(voiceTranscript || voiceStatus === 'listening' || voiceStatus === 'processing' || voiceStatus === 'thinking') && (
         <div className="voice-chat-dock" aria-live="polite">
