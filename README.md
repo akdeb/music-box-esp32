@@ -2,7 +2,7 @@
 
 <img src="assets/transparent-circle-logo.png" alt="ELATO logo" width="140" />
 
-# JamBox by ELATO
+# JamBox
 
 ### An app and gadget that brings your realtime music creations to life, powered by your Mac, Magenta RealTime, MLX, and ESP32
 
